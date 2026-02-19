@@ -71,15 +71,27 @@ def log_predictions(X,preds):
 # ============================================================
 # 5. Reporte Evidently
 # ============================================================
+current_dir = os.path.dirname(os.path.abspath(__file__))
+reportesdir = os.path.join(current_dir, "../../reportes")
+os.makedirs(reportesdir, exist_ok=True)
 def generate_evidently_report(reference, current):
     try:
-        from evidently.report import Report
-        from evidently.metric_preset import DataDriftPreset
+        from evidently import Report
+        from evidently.presets import DataDriftPreset
         report = Report(metrics=[DataDriftPreset()])
-        report.run(reference_data=reference, current_data=current)
-        return report
+        myreport=report.run(reference_data=reference, current_data=current)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        reporte_path = os.path.join(reportesdir, f"reporte_{timestamp}.html")
+        
+        myreport.save_html(reporte_path)
+        return reporte_path
     except ModuleNotFoundError:
         st.error("Evidently no está instalado. Instala con: pip install evidently")
+        return None
+    except Exception as e:
+        st.error(f"Error generando reporte: {e}")
         return None
 # ============================================================
 # 5. FUNCIONES DE DRIFT
@@ -285,9 +297,17 @@ def main():
         if st.button("📄 Generar Reporte Completo"):
             report = generate_evidently_report(X_ref, X_new)
             if report:
-                report.save_html("reporte.html")
-                with open("reporte.html", 'r', encoding='utf-8') as f:
-                    st.components.v1.html(f.read(), height=1000, scrolling=True)
+                st.success("Reporte generado exitosamente. Revisa el archivo HTML en el directorio.")
+                try:
+                    with open(report, 'r', encoding='utf-8') as f:
+                        html_content = f.read()
+                    st.components.v1.html( f"""
+                        <div style="width: 200%; overflow-x: auto;">
+                            {html_content}
+                        </div>
+                        """, height=1100, scrolling=True)
+                except Exception as e:
+                    st.error(f"Error al mostrar reporte: {e}")
 
 if __name__ == "__main__":
     main()
